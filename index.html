@@ -5,15 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1"/>
 <title id="pageTitle">מזג ודעה - עדכוני מזג אוויר</title>
 <meta name="description" content="עדכוני מזג אוויר בזמן אמת - התרעות, תחזיות ותמונות."/>
-
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&family=Noto+Color+Emoji&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<link rel="stylesheet" href="style.css?v=1">
+<link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
-
-<!-- ===== מסך התחברות - שום דבר לא נטען לפני שמתחברים, בדיוק כמו במקור ===== -->
+<!-- ===== מסך התחברות ===== -->
 <div id="loginScreen">
   <div class="sky-strip"></div>
   <div class="login-card">
@@ -36,7 +34,7 @@
   <button onclick="window._doLogout()">התנתק</button>
 </div>
 
-<!-- ===== האתר עצמו - מוצג רק אחרי התחברות תקינה ===== -->
+<!-- ===== האתר עצמו ===== -->
 <div id="app">
   <div class="sky-strip"></div>
   <header>
@@ -45,22 +43,73 @@
       <div class="hdr-name">מזג ודעה</div>
     </div>
     <div class="hdr-user">
+      <button id="adminBtn" class="admin-gear-btn" style="display:none" onclick="window._openAdmin()" title="ניהול">
+        <i class="fas fa-gear"></i>
+      </button>
       <span id="hdrUserName" class="hdr-user-name"></span>
       <div id="userAvatar"></div>
     </div>
   </header>
 
   <main id="feedWrap">
+    <!-- ===== טופס פרסום — מוצג רק לכותבים/מנהלים ===== -->
+    <div id="composer" class="composer" style="display:none">
+      <textarea id="composerText" class="composer-text" rows="3" maxlength="2000" placeholder="מה מזג האוויר היום?"></textarea>
+      <div class="composer-row">
+        <input type="text" id="composerImg" class="composer-input" placeholder="קישור לתמונה (אופציונלי)">
+        <input type="text" id="composerVideo" class="composer-input" placeholder="קישור לוידאו YouTube (אופציונלי)">
+      </div>
+      <div class="composer-row">
+        <input type="text" id="composerTags" class="composer-input" placeholder="תגיות, מופרדות בפסיק (למשל: התרעה, סופה)">
+      </div>
+      <div class="composer-footer">
+        <span id="composerError" class="composer-error"></span>
+        <button id="composerSubmitBtn" class="composer-submit" onclick="window._submitPost()">פרסם עדכון</button>
+      </div>
+    </div>
+
     <div id="feedInner"></div>
     <div id="empty">
       <i class="fas fa-cloud"></i>
       <p>עדיין אין עדכונים</p>
     </div>
   </main>
-
-  <!-- כאן ייכנס בהמשך (Phase 3) סרגל הפרסום למי שיש לו הרשאת כתיבה -->
 </div>
 
-<script type="module" src="app.js?v=1"></script>
+<!-- ===== פאנל ניהול ===== -->
+<div id="adminModal" class="modal-overlay">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h2>ניהול האתר</h2>
+      <button class="modal-close" onclick="window._closeAdmin()">✕</button>
+    </div>
+
+    <section class="admin-section">
+      <h3>הרשאות כתיבה</h3>
+      <div class="admin-form">
+        <input type="text" id="roleEmailInput" placeholder="אימייל (אותיות קטנות)">
+        <input type="text" id="roleNameInput" placeholder="שם תצוגה">
+        <select id="roleSelect">
+          <option value="writer">כותב</option>
+          <option value="super">מנהל-על</option>
+          <option value="reader">קורא בלבד</option>
+        </select>
+        <button onclick="window._setRole()">עדכן הרשאה</button>
+      </div>
+      <p id="roleMsg" class="admin-msg"></p>
+    </section>
+
+    <section class="admin-section">
+      <h3>חסימת משתמשים</h3>
+      <div class="admin-form">
+        <input type="text" id="blockEmailInput" placeholder="אימייל לחסימה">
+        <button onclick="window._blockUser()">חסום</button>
+      </div>
+      <div id="blockedList" class="admin-list"></div>
+    </section>
+  </div>
+</div>
+
+<script type="module" src="app.js?v=2"></script>
 </body>
 </html>
