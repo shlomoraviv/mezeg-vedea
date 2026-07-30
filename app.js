@@ -7,14 +7,13 @@ import {
   getFirestore, doc, getDoc, collection, query, orderBy, limit, onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
-// ⚠️ תחליף בערכים האמיתיים שלך מ-Project settings → Your apps (שלב 5 בהוראות)
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID",
+  apiKey: "AIzaSyDTTv6qEjKoKa2ObdpQR-whFdR3QUl6fqQ",
+  authDomain: "mezeg-vedea.firebaseapp.com",
+  projectId: "mezeg-vedea",
+  storageBucket: "mezeg-vedea.firebasestorage.app",
+  messagingSenderId: "873563607640",
+  appId: "1:873563607640:web:da3e6cc1749c3bca96f02d",
 };
 
 const app = initializeApp(firebaseConfig);
