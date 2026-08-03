@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&family=Noto+Color+Emoji&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<link rel="stylesheet" href="style.css?v=2">
+<link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
 <!-- ===== מסך התחברות ===== -->
@@ -34,6 +34,14 @@
   <button onclick="window._doLogout()">התנתק</button>
 </div>
 
+<!-- ===== מסך תחזוקה ===== -->
+<div id="maintenanceScreen">
+  <i class="fas fa-screwdriver-wrench"></i>
+  <h1>האתר בתחזוקה</h1>
+  <p id="maintenanceMsg">נחזור בקרוב.</p>
+  <button onclick="window._doLogout()">התנתק</button>
+</div>
+
 <!-- ===== האתר עצמו ===== -->
 <div id="app">
   <div class="sky-strip"></div>
@@ -43,6 +51,13 @@
       <div class="hdr-name">מזג ודעה</div>
     </div>
     <div class="hdr-user">
+      <button id="leaderboardBtn" class="admin-gear-btn" style="display:none" onclick="window._openLeaderboard()" title="לוח מובילים">
+        <i class="fas fa-trophy"></i>
+      </button>
+      <button id="announceBtn" class="admin-gear-btn" style="display:none;position:relative" onclick="window._openAnnouncements()" title="הודעות מנהל">
+        <i class="fas fa-bullhorn"></i>
+        <span id="announceBadge" class="announce-badge" style="display:none"></span>
+      </button>
       <button id="adminBtn" class="admin-gear-btn" style="display:none" onclick="window._openAdmin()" title="ניהול">
         <i class="fas fa-gear"></i>
       </button>
@@ -52,6 +67,9 @@
   </header>
 
   <main id="feedWrap">
+    <!-- ===== באנר פרסומת ===== -->
+    <div id="adBanner" class="ad-banner" style="display:none"></div>
+
     <!-- ===== טופס פרסום — מוצג רק לכותבים/מנהלים ===== -->
     <div id="composer" class="composer" style="display:none">
       <textarea id="composerText" class="composer-text" rows="3" maxlength="2000" placeholder="מה מזג האוויר היום?"></textarea>
@@ -107,9 +125,60 @@
       </div>
       <div id="blockedList" class="admin-list"></div>
     </section>
+
+    <section class="admin-section">
+      <h3>מצב תחזוקה</h3>
+      <label class="admin-checkbox">
+        <input type="checkbox" id="updateModeToggle"> הפעל מצב תחזוקה (רק מנהל-על יראה את האתר)
+      </label>
+      <input type="text" id="updateModeMsg" placeholder="הודעה שתוצג לגולשים" style="margin-top:8px;width:100%">
+      <button onclick="window._saveUpdateMode()" style="margin-top:8px">שמור</button>
+    </section>
+
+    <section class="admin-section">
+      <h3>פרסומת</h3>
+      <label class="admin-checkbox">
+        <input type="checkbox" id="adToggle"> הצג פרסומת בראש הפיד
+      </label>
+      <div class="admin-form" style="margin-top:8px">
+        <input type="text" id="adText" placeholder="טקסט הפרסומת">
+        <input type="text" id="adImg" placeholder="קישור לתמונה (אופציונלי)">
+        <input type="text" id="adLink" placeholder="קישור ליעד בלחיצה (אופציונלי)">
+      </div>
+      <button onclick="window._saveAd()" style="margin-top:8px">שמור</button>
+      <p id="settingsMsg" class="admin-msg"></p>
+    </section>
   </div>
 </div>
 
-<script type="module" src="app.js?v=2"></script>
+<!-- ===== מודל הודעות מנהל ===== -->
+<div id="announceModal" class="modal-overlay">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h2>הודעות מנהל</h2>
+      <button class="modal-close" onclick="window._closeAnnouncements()">✕</button>
+    </div>
+    <div id="announceList" class="announce-list"></div>
+    <div id="announceSendRow" class="cmt-input-row" style="display:none;margin-top:12px">
+      <input type="text" id="announceInput" placeholder="כתוב הודעה לכל הגולשים..." maxlength="500"
+             onkeydown="if(event.key==='Enter')window._sendAnnouncement()">
+      <button onclick="window._sendAnnouncement()"><i class="fas fa-paper-plane"></i></button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== מודל לוח מובילים ===== -->
+<div id="leaderboardModal" class="modal-overlay">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h2>לוח מובילים</h2>
+      <button class="modal-close" onclick="window._closeLeaderboard()">✕</button>
+    </div>
+    <p class="admin-msg" style="margin-bottom:10px">מבוסס על 20 העדכונים האחרונים בפיד.</p>
+    <div id="leaderboardList" class="admin-list"></div>
+  </div>
+</div>
+
+<script type="module" src="app.js?v=3"></script>
 </body>
 </html>
