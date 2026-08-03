@@ -238,6 +238,44 @@ header{
 .admin-row button:hover{border-color:var(--accent-sky);color:var(--primary)}
 .admin-empty{font-size:12px;color:var(--text-muted);margin-top:6px}
 
+/* ===== מסך תחזוקה ===== */
+#maintenanceScreen{
+  display:none;position:fixed;inset:0;z-index:1000;
+  background:var(--primary-dark);color:#fff;
+  flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;
+}
+#maintenanceScreen i{font-size:64px;color:var(--accent-sky);margin-bottom:18px}
+#maintenanceScreen h1{font-size:26px;font-weight:900;margin-bottom:8px}
+#maintenanceScreen p{font-size:14px;color:#c8d6de;line-height:1.6;max-width:360px}
+#maintenanceScreen button{
+  margin-top:26px;background:var(--accent-sky);color:#fff;border:none;border-radius:10px;
+  padding:11px 22px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Heebo',sans-serif;
+}
+
+/* ===== באנר פרסומת ===== */
+.ad-banner{
+  display:flex;align-items:center;gap:10px;background:#fff7ec;border:1px solid #f0dcb8;
+  border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:var(--text);
+}
+.ad-banner a{display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;width:100%}
+.ad-banner img{width:40px;height:40px;border-radius:8px;object-fit:cover}
+
+/* ===== תג התראה על פעמון הודעות ===== */
+.announce-badge{
+  position:absolute;top:2px;left:2px;width:8px;height:8px;border-radius:50%;background:var(--warn);
+}
+
+/* ===== הודעות מנהל ===== */
+.announce-list{display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto}
+.announce-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;background:var(--bg);border-radius:9px;padding:8px 10px}
+.announce-body{display:flex;flex-direction:column;gap:2px}
+.announce-author{font-size:10px;font-weight:800;color:var(--primary)}
+.announce-text{font-size:13px;color:var(--text)}
+
+/* ===== תיבת סימון בפאנל ניהול ===== */
+.admin-checkbox{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer}
+.admin-checkbox input{width:16px;height:16px;cursor:pointer}
+
 @media(max-width:520px){
   #feedWrap{padding:14px 10px 50px}
   .post-text{font-size:16px}
