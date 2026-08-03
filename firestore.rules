@@ -31,64 +31,46 @@ service cloud.firestore {
     function isBlocked() {
       return signedIn()
         && exists(/databases/$(database)/documents/settings/site)
-        && (myEmail() in get(/databases/$(database)/documents/settings/site).data.blockedEmails);
+        && myEmail() in get(/databases/$(database)/documents/settings/site).data.blockedEmails;
     }
 
-    // Only allows updating the "reactions" map field, nothing else on the doc
-    function onlyChangedReactions() {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions']);
-    }
-
-    // Viewing requires login (and not being blocked) - matches the original's
-    // full-screen login wall, where nothing renders until Google sign-in succeeds.
-    function canView() {
-      return signedIn() && !isBlocked();
-    }
-
-    // ===== roles/{email} -> { role: 'super' | 'writer', name, picture } =====
-    // This is the whole permission system. Bootstrap the first 'super' doc
-    // by hand in the Firebase console (see setup steps) - after that, super
-    // admins manage it from inside the site itself.
+    // ===== roles/{email} — מי מנהל-על, מי כותב =====
     match /roles/{email} {
-      allow read: if canView();          // so the UI can show writer names/avatars
+      allow get: if signedIn() && (isSuperAdmin() || email == myEmail());
+      allow list: if isSuperAdmin();
       allow write: if isSuperAdmin();
     }
 
-    // ===== posts/{postId} =====
-    match /posts/{postId} {
-      allow read: if canView();          // login required to view, like the original
-      allow create: if isWriter() && !isBlocked();
-      allow update: if isSuperAdmin()
-        || (isWriter() && resource.data.authorEmail == myEmail())
-        || (canView() && onlyChangedReactions());   // any logged-in, non-blocked user can react
-      allow delete: if isSuperAdmin()
-        || (isWriter() && resource.data.authorEmail == myEmail());
+    // ===== settings/site — רשימת חסומים, הגדרות כלליות =====
+    match /settings/site {
+      allow get: if signedIn();
+      allow write: if isSuperAdmin();
+    }
 
+    // ===== posts/{postId} — הפיד =====
+    match /posts/{postId} {
+      allow read: if signedIn() && !isBlocked();
+      allow create: if signedIn() && !isBlocked() && isWriter()
+                    && request.resource.data.authorEmail == myEmail();
+      // עדכון פתוח לכל משתמש לא-חסום כדי לאפשר ריאקציות; מחיקה רק לכותבים/מנהלים
+      allow update: if signedIn() && !isBlocked();
+      allow delete: if isWriter();
+
+      // ===== תגובות על פוסט =====
       match /comments/{commentId} {
-        allow read: if canView();
-        allow create: if canView();
-        allow delete: if isSuperAdmin()
-          || (signedIn() && resource.data.authorEmail == myEmail());
+        allow read: if signedIn() && !isBlocked();
+        allow create: if signedIn() && !isBlocked()
+                      && request.resource.data.authorEmail == myEmail();
+        allow delete: if signedIn() && (isSuperAdmin() || resource.data.authorEmail == myEmail());
       }
     }
 
-    // ===== reports/{reportId} =====
-    match /reports/{reportId} {
-      allow create: if canView();
-      allow read, update, delete: if isSuperAdmin();
-    }
-
-    // ===== settings/site -> { commentsEnabled, blockedEmails: [], title } =====
-    // Plain signedIn() here (not canView()) so isBlocked() can read it without a loop.
-    match /settings/{doc} {
-      allow read: if signedIn();
-      allow write: if isSuperAdmin();
-    }
-
-    // ===== ads/{popup|side} =====
-    match /ads/{adId} {
-      allow read: if canView();
-      allow write: if isSuperAdmin();
+    // ===== announcements/{id} — הודעות מנהל, כולם קוראים, רק כותבים שולחים =====
+    match /announcements/{id} {
+      allow read: if signedIn() && !isBlocked();
+      allow create: if signedIn() && !isBlocked() && isWriter()
+                    && request.resource.data.authorEmail == myEmail();
+      allow delete: if signedIn() && (isSuperAdmin() || (isWriter() && resource.data.authorEmail == myEmail()));
     }
   }
 }
