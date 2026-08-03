@@ -8,6 +8,7 @@ import {
   arrayUnion, arrayRemove, serverTimestamp,
   collection, query, orderBy, limit, onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+// Phase 4: הודעות מנהל, לוח מובילים, מצב תחזוקה, פרסומת
 
 const firebaseConfig = {
   apiKey: "AIzaSyDTTv6qEjKoKa2ObdpQR-whFdR3QUl6fqQ",
@@ -30,6 +31,9 @@ let myRole = "reader";  // 'super' | 'writer' | 'reader'
 let unsubscribeFeed = null;
 let unsubscribeComments = {}; // postId -> unsubscribe fn
 let unsubscribeSettings = null;
+let unsubscribeAnnouncements = null;
+let siteSettings = {}; // updateMode, ad
+let lastFeedPosts = []; // used for leaderboard aggregation
 
 const $ = (id) => document.getElementById(id);
 
@@ -69,6 +73,7 @@ window._doLogout = async function () {
   Object.values(unsubscribeComments).forEach((fn) => fn && fn());
   unsubscribeComments = {};
   if (unsubscribeSettings) unsubscribeSettings();
+  if (unsubscribeAnnouncements) unsubscribeAnnouncements();
   await signOut(auth);
 };
 
@@ -82,11 +87,12 @@ onAuthStateChanged(auth, async (user) => {
 
   me = { email: user.email.toLowerCase(), name: user.displayName || user.email, picture: user.photoURL || "" };
 
-  // בדיקת חסימה + הבאת תפקיד
+  // בדיקת חסימה + הגדרות אתר (מצב תחזוקה, פרסומת)
   let blocked = false;
   try {
     const settingsSnap = await getDoc(doc(db, "settings", "site"));
-    const blockedEmails = settingsSnap.exists() ? settingsSnap.data().blockedEmails || [] : [];
+    siteSettings = settingsSnap.exists() ? settingsSnap.data() : {};
+    const blockedEmails = siteSettings.blockedEmails || [];
     blocked = blockedEmails.includes(me.email);
   } catch (e) {
     console.error("שגיאה בבדיקת חסימה:", e);
@@ -104,6 +110,13 @@ onAuthStateChanged(auth, async (user) => {
     myRole = "reader";
   }
 
+  // מצב תחזוקה — כולם חוץ ממנהל-על רואים מסך תחזוקה
+  if (siteSettings.updateMode && siteSettings.updateMode.enabled && myRole !== "super") {
+    $("maintenanceMsg").textContent = siteSettings.updateMode.message || "האתר בתחזוקה זמנית, נחזור בקרוב.";
+    show("maintenanceScreen");
+    return;
+  }
+
   show("app");
   $("hdrUserName").textContent = me.name;
   const av = $("userAvatar");
@@ -115,12 +128,144 @@ onAuthStateChanged(auth, async (user) => {
   $("composer").style.display = (myRole === "writer" || myRole === "super") ? "block" : "none";
   // מנהלי-על רואים כפתור ניהול
   $("adminBtn").style.display = myRole === "super" ? "flex" : "none";
+  // הודעות מנהל ולוח מובילים גלויים לכולם
+  $("announceBtn").style.display = "flex";
+  $("leaderboardBtn").style.display = "flex";
 
+  renderAdBanner();
+  startAnnouncements();
   startFeed();
 });
 
+// ===== באנר פרסומת =====
+function renderAdBanner() {
+  const holder = $("adBanner");
+  const ad = siteSettings.ad;
+  if (!ad || !ad.enabled || (!ad.text && !ad.imgUrl)) {
+    holder.style.display = "none";
+    holder.innerHTML = "";
+    return;
+  }
+  const inner = `
+    ${ad.imgUrl ? `<img src="${esc(ad.imgUrl)}" alt="">` : ""}
+    ${ad.text ? `<span>${esc(ad.text)}</span>` : ""}
+  `;
+  holder.innerHTML = ad.linkUrl
+    ? `<a href="${esc(ad.linkUrl)}" target="_blank" rel="noopener">${inner}</a>`
+    : inner;
+  holder.style.display = "flex";
+}
+
+// ===== הודעות מנהל =====
+function startAnnouncements() {
+  if (unsubscribeAnnouncements) unsubscribeAnnouncements();
+  const q = query(collection(db, "announcements"), orderBy("createdAt", "desc"), limit(30));
+  unsubscribeAnnouncements = onSnapshot(q, (snap) => {
+    const badge = $("announceBadge");
+    if (badge) badge.style.display = snap.empty ? "none" : "inline-block";
+    const list = $("announceList");
+    if (!list) return;
+    if (snap.empty) {
+      list.innerHTML = `<p class="admin-empty">אין הודעות עדיין.</p>`;
+      return;
+    }
+    list.innerHTML = snap.docs.map((d) => {
+      const a = d.data();
+      const canDel = myRole === "super" || a.authorEmail === (me && me.email);
+      return `
+        <div class="announce-row">
+          <div class="announce-body">
+            <span class="announce-author">${esc(a.authorName || "מנהל")} · ${fmtTime(a.createdAt)}</span>
+            <span class="announce-text">${rich(a.text || "")}</span>
+          </div>
+          ${canDel ? `<button class="cmt-del" onclick="window._deleteAnnouncement('${d.id}')" title="מחק">✕</button>` : ""}
+        </div>`;
+    }).join("");
+  });
+}
+
+window._openAnnouncements = function () {
+  $("announceModal").style.display = "flex";
+  $("announceSendRow").style.display = (myRole === "writer" || myRole === "super") ? "flex" : "none";
+};
+window._closeAnnouncements = function () {
+  $("announceModal").style.display = "none";
+};
+window._sendAnnouncement = async function () {
+  const input = $("announceInput");
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = "";
+  try {
+    await addDoc(collection(db, "announcements"), {
+      text, authorEmail: me.email, authorName: me.name, createdAt: serverTimestamp(),
+    });
+  } catch (e) {
+    console.error(e);
+    alert("השליחה נכשלה.");
+  }
+};
+window._deleteAnnouncement = async function (id) {
+  try {
+    await deleteDoc(doc(db, "announcements", id));
+  } catch (e) {
+    console.error(e);
+  }
+};
+
+// ===== לוח מובילים (מבוסס על 20 העדכונים האחרונים שנטענו) =====
+window._openLeaderboard = function () {
+  $("leaderboardModal").style.display = "flex";
+  const counts = {}; // email -> {name, posts, reactions}
+  lastFeedPosts.forEach((p) => {
+    const email = p.authorEmail || "unknown";
+    if (!counts[email]) counts[email] = { name: p.authorName || email, posts: 0, reactions: 0 };
+    counts[email].posts += 1;
+    const rx = p.reactions || {};
+    Object.values(rx).forEach((arr) => { counts[email].reactions += (arr || []).length; });
+  });
+  const rows = Object.values(counts).sort((a, b) => (b.posts + b.reactions) - (a.posts + a.reactions));
+  const list = $("leaderboardList");
+  list.innerHTML = rows.length
+    ? rows.map((r, i) => `
+        <div class="admin-row">
+          <span>#${i + 1} ${esc(r.name)}</span>
+          <span>${r.posts} פוסטים · ${r.reactions} ריאקציות</span>
+        </div>`).join("")
+    : `<p class="admin-empty">אין עדיין נתונים.</p>`;
+};
+window._closeLeaderboard = function () {
+  $("leaderboardModal").style.display = "none";
+};
+
+// ===== הגדרות אתר (מצב תחזוקה + פרסומת) — מנהל-על בלבד =====
+window._saveUpdateMode = async function () {
+  const enabled = $("updateModeToggle").checked;
+  const message = $("updateModeMsg").value.trim();
+  try {
+    await setDoc(doc(db, "settings", "site"), { updateMode: { enabled, message } }, { merge: true });
+    $("settingsMsg").textContent = "נשמר.";
+  } catch (e) {
+    console.error(e);
+    $("settingsMsg").textContent = "השמירה נכשלה.";
+  }
+};
+window._saveAd = async function () {
+  const enabled = $("adToggle").checked;
+  const text = $("adText").value.trim();
+  const imgUrl = $("adImg").value.trim();
+  const linkUrl = $("adLink").value.trim();
+  try {
+    await setDoc(doc(db, "settings", "site"), { ad: { enabled, text, imgUrl, linkUrl } }, { merge: true });
+    $("settingsMsg").textContent = "נשמר.";
+  } catch (e) {
+    console.error(e);
+    $("settingsMsg").textContent = "השמירה נכשלה.";
+  }
+};
+
 function show(id) {
-  ["loginScreen", "bannedScreen", "app"].forEach((s) => {
+  ["loginScreen", "bannedScreen", "maintenanceScreen", "app"].forEach((s) => {
     const el = $(s);
     if (!el) return;
     el.style.display = s === id ? (s === "app" ? "flex" : "flex") : "none";
@@ -251,7 +396,9 @@ window._openAdmin = function () {
   $("adminModal").style.display = "flex";
   const settingsRef = doc(db, "settings", "site");
   unsubscribeSettings = onSnapshot(settingsRef, (snap) => {
-    const blocked = snap.exists() ? snap.data().blockedEmails || [] : [];
+    const data = snap.exists() ? snap.data() : {};
+    siteSettings = data;
+    const blocked = data.blockedEmails || [];
     $("blockedList").innerHTML = blocked.length
       ? blocked.map((em) => `
           <div class="admin-row">
@@ -259,6 +406,16 @@ window._openAdmin = function () {
             <button onclick="window._unblockUser('${esc(em)}')">בטל חסימה</button>
           </div>`).join("")
       : `<p class="admin-empty">אין משתמשים חסומים.</p>`;
+
+    const um = data.updateMode || {};
+    $("updateModeToggle").checked = !!um.enabled;
+    $("updateModeMsg").value = um.message || "";
+
+    const ad = data.ad || {};
+    $("adToggle").checked = !!ad.enabled;
+    $("adText").value = ad.text || "";
+    $("adImg").value = ad.imgUrl || "";
+    $("adLink").value = ad.linkUrl || "";
   });
 };
 window._closeAdmin = function () {
@@ -318,6 +475,7 @@ function startFeed() {
         return;
       }
       empty.style.display = "none";
+      lastFeedPosts = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       inner.innerHTML = snap.docs.map((d) => buildPostCard(d.id, d.data())).join("");
     },
     (err) => {
